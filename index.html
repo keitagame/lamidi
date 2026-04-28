@@ -1566,7 +1566,11 @@ this.melodyBoost[3] = 2.4;
 this.melodyBoost[9] = 1.0; // Drum
 this.reverb = audioCtx.createConvolver();
 this.reverb.buffer = createReverbIR(audioCtx, 1.6, 2.2);
+this.partialSaw=
+this.createSyntheticPartial("saw");
 
+this.partialSquare=
+this.createSyntheticPartial("square");
 this.reverbGain = audioCtx.createGain();
 this.reverbGain.gain.value = 0.25; // リバーブ量
 this.chorusDelay = audioCtx.createDelay(0.03);
@@ -1884,6 +1888,42 @@ parsePresetZones(sf, presetIdx) {
   }
 
   return { globalZone, localZones };
+}
+createSyntheticPartial(type="saw", seconds=1){
+
+const sr=this.audioCtx.sampleRate;
+const len=Math.floor(sr*seconds);
+
+const buffer=
+this.audioCtx.createBuffer(
+1,
+len,
+sr
+);
+
+const data=
+buffer.getChannelData(0);
+
+for(let i=0;i<len;i++){
+
+const t=i/sr;
+const phase=t*440 % 1;
+
+if(type==="saw"){
+ data[i]=2*phase-1;
+}
+
+if(type==="square"){
+ data[i]=phase<0.5 ? 1 : -1;
+}
+
+if(type==="triangle"){
+ data[i]=1-4*Math.abs(phase-0.5);
+}
+
+}
+
+return buffer;
 }
   prepareSamples() {
     if (!this.sf.sampleData || !this.sf.samples) {
@@ -2816,8 +2856,8 @@ vel*vol*expr,
 const pcmGain=this.audioCtx.createGain();
 const synthGain=this.audioCtx.createGain();
 
-pcmGain.gain.value=finalGain;
-synthGain.gain.value=finalGain*0.18;
+pcmGain.gain.value=finalGain*0.1;
+synthGain.gain.value=finalGain*0.07;
 
 
 // PCM attack decay
@@ -2846,12 +2886,23 @@ filter.Q.value=3;
 // LA partials
 //-------------------
 
-const osc1=this.audioCtx.createOscillator();
-const osc2=this.audioCtx.createOscillator();
+//const osc1=this.audioCtx.createOscillator();
+//const osc2=this.audioCtx.createOscillator();
+const osc1=
+this.audioCtx.createBufferSource();
 
+osc1.buffer=this.partialSaw;
+osc1.loop=true;
+
+const osc2=
+this.audioCtx.createBufferSource();
+
+osc2.buffer=this.partialSquare;
+osc2.loop=true;
+/*
 if(program<8){
- osc1.type="triangle";
- osc2.type="triangle";
+ osc1.type="square";
+ osc2.type="square";
 }
 else if(program>=56&&program<=63){
  osc1.type="sawtooth";
@@ -2861,7 +2912,7 @@ else{
  osc1.type="sawtooth";
  osc2.type="square";
 }
-
+*/
 osc2.detune.value=7;
 
 const oscGain=this.audioCtx.createGain();
@@ -2876,15 +2927,15 @@ oscGain.connect(synthGain);
 const lfo=this.audioCtx.createOscillator();
 const depth=this.audioCtx.createGain();
 
-lfo.frequency.value=4.5;
+lfo.frequency.value=0;
 depth.gain.value=5;
 
 lfo.connect(depth);
-
+/*
 depth.connect(osc1.frequency);
 depth.connect(osc2.frequency);
-
-
+*/
+/*
 // osc pitch
 const hz=
 440*Math.pow(
@@ -2894,8 +2945,16 @@ const hz=
 
 osc1.frequency.value=hz;
 osc2.frequency.value=hz;
+*/
+const hz=
+440*Math.pow(2,(note-69)/12);
 
+const base=440;
 
+const rate=hz/base;
+
+osc1.playbackRate.value=rate;
+osc2.playbackRate.value=rate*1.003;
 //-------------------
 // Pan/output
 //-------------------
@@ -3023,21 +3082,136 @@ if (this.sustainPedal[channel]) {
 
   const now = this.audioCtx.currentTime;
   const scheduleTime = Math.max(when || now, now);
-if(info.osc1) info.osc1.stop(when+0.2);
-if(info.osc2) info.osc2.stop(when+0.2);
-if(info.lfo)  info.lfo.stop(when+0.2);
-/*
+  /*
+//if(info.osc1) 
+info.osc1.stop(when+0.2);
+//if(info.osc2)
+ info.osc2.stop(when+0.2);
+//if(info.lfo) 
+ info.lfo.stop(when+0.2);
+ */
+
   if (channel == 9) {
-    gain.gain.setValueAtTime(gain.gain.value, scheduleTime);
-    gain.gain.linearRampToValueAtTime(0, scheduleTime + 0.2);
-    source.stop(scheduleTime + 0.22);
+    info.osc1.setValueAtTime(info.osc1.value, scheduleTime);//stop(when+0.2);
+    //gain.gain.setValueAtTime(gain.gain.value, scheduleTime);
+    info.osc1.linearRampToValueAtTime(0, scheduleTime + 0.2);//setValueAtTime(info.osc1.value, scheduleTime);
+    //gain.gain.linearRampToValueAtTime(0, scheduleTime + 0.2);
+    info.osc1.stop(scheduleTime + 0.22);
+    info.osc2.setValueAtTime(info.osc1.value, scheduleTime);//stop(when+0.2);
+    //gain.gain.setValueAtTime(gain.gain.value, scheduleTime);
+    info.osc2.linearRampToValueAtTime(0, scheduleTime + 0.2);//setValueAtTime(info.osc1.value, scheduleTime);
+    //gain.gain.linearRampToValueAtTime(0, scheduleTime + 0.2);
+    info.osc2.stop(scheduleTime + 0.22);
+    info.lfo.setValueAtTime(info.osc1.value, scheduleTime);//stop(when+0.2);
+    //gain.gain.setValueAtTime(gain.gain.value, scheduleTime);
+    info.lfo.linearRampToValueAtTime(0, scheduleTime + 0.2);//setValueAtTime(info.osc1.value, scheduleTime);
+    //gain.gain.linearRampToValueAtTime(0, scheduleTime + 0.2);
+    info.lfo.stop(scheduleTime + 0.22);
   } else {
-    gain.gain.setValueAtTime(gain.gain.value, scheduleTime);
-    gain.gain.linearRampToValueAtTime(0, scheduleTime + 0.0);
-    source.stop(scheduleTime + 0.0); // ← ここも修正（0.03だと短すぎ）
+    info.lfo.setValueAtTime(info.osc1.value, scheduleTime);//stop(when+0.2);
+    //gain.gain.setValueAtTime(gain.gain.value, scheduleTime);
+    info.lfo.linearRampToValueAtTime(0, scheduleTime + 0.2);//setValueAtTime(info.osc1.value, scheduleTime);
+    //gain.gain.linearRampToValueAtTime(0, scheduleTime + 0.2);
+    info.lfo.stop(scheduleTime + 0.22);
+    info.osc2.setValueAtTime(info.osc1.value, scheduleTime);//stop(when+0.2);
+    //gain.gain.setValueAtTime(gain.gain.value, scheduleTime);
+    info.osc2.linearRampToValueAtTime(0, scheduleTime + 0.2);//setValueAtTime(info.osc1.value, scheduleTime);
+    //gain.gain.linearRampToValueAtTime(0, scheduleTime + 0.2);
+    info.osc2.stop(scheduleTime + 0.22);
+    info.osc1.setValueAtTime(info.osc1.value, scheduleTime);//stop(when+0.2);
+    //gain.gain.setValueAtTime(gain.gain.value, scheduleTime);
+    info.osc1.linearRampToValueAtTime(0, scheduleTime + 0.2);//setValueAtTime(info.osc1.value, scheduleTime);
+    //gain.gain.linearRampToValueAtTime(0, scheduleTime + 0.2);
+    info.osc1.stop(scheduleTime + 0.22);
+    //gain.gain.setValueAtTime(gain.gain.value, scheduleTime);
+    //gain.gain.linearRampToValueAtTime(0, scheduleTime + 0.0);
+    //source.stop(scheduleTime + 0.0); // ← ここも修正（0.03だと短すぎ）
   }
-*/
+
   this.activeNotes.delete(key);
+}
+_noteOffNow(channel,note,when){
+
+const key=`${channel}-${note}`;
+const info=this.activeNotes.get(key);
+if(!info) return;
+
+this.channelPolyCount[channel]=
+Math.max(
+0,
+this.channelPolyCount[channel]-1
+);
+
+const now=this.audioCtx.currentTime;
+const t=Math.max(when||now,now);
+
+
+// PCM release
+if(info.pcmGain){
+ info.pcmGain.gain.cancelScheduledValues(t);
+
+ info.pcmGain.gain.setValueAtTime(
+   Math.max(
+      info.pcmGain.gain.value,
+      0.0001
+   ),
+   t
+ );
+
+ info.pcmGain.gain.exponentialRampToValueAtTime(
+   0.0001,
+   t+0.0
+ );
+}
+
+
+// LA partial release
+if(info.synthGain){
+
+ info.synthGain.gain.cancelScheduledValues(t);
+
+ info.synthGain.gain.setValueAtTime(
+   Math.max(
+      info.synthGain.gain.value,
+      0.0001
+   ),
+   t
+ );
+
+ info.synthGain.gain.exponentialRampToValueAtTime(
+   0.0001,
+   t+0.2
+ );
+}
+
+
+// stop sources
+if(info.source){
+ try{
+   info.source.stop(t+0.2);
+ }catch(e){}
+}
+
+if(info.osc1){
+ try{
+   info.osc1.stop(t+0.1);
+ }catch(e){}
+}
+
+if(info.osc2){
+ try{
+   info.osc2.stop(t+0.1);
+ }catch(e){}
+}
+
+if(info.lfo){
+ try{
+   info.lfo.stop(t+0.0);
+ }catch(e){}
+}
+
+this.activeNotes.delete(key);
+
 }
 allNotesOff(ch) {
   const now = this.audioCtx.currentTime;
