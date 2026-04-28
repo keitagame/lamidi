@@ -2856,7 +2856,7 @@ vel*vol*expr,
 const pcmGain=this.audioCtx.createGain();
 const synthGain=this.audioCtx.createGain();
 
-pcmGain.gain.value=finalGain*0.1;
+pcmGain.gain.value=finalGain*0.07;
 synthGain.gain.value=finalGain*0.07;
 
 
@@ -3145,7 +3145,7 @@ this.channelPolyCount[channel]-1
 const now=this.audioCtx.currentTime;
 const t=Math.max(when||now,now);
 
-
+if(channel != 9){
 // PCM release
 if(info.pcmGain){
  info.pcmGain.gain.cancelScheduledValues(t);
@@ -3209,9 +3209,74 @@ if(info.lfo){
    info.lfo.stop(t+0.0);
  }catch(e){}
 }
-
 this.activeNotes.delete(key);
+return;
+}
 
+// PCM release
+if(info.pcmGain){
+ info.pcmGain.gain.cancelScheduledValues(t);
+
+ info.pcmGain.gain.setValueAtTime(
+   Math.max(
+      info.pcmGain.gain.value,
+      0.0001
+   ),
+   t
+ );
+
+ info.pcmGain.gain.exponentialRampToValueAtTime(
+   0.0001,
+   t+0.3
+ );
+}
+
+
+// LA partial release
+if(info.synthGain){
+
+ info.synthGain.gain.cancelScheduledValues(t);
+
+ info.synthGain.gain.setValueAtTime(
+   Math.max(
+      info.synthGain.gain.value,
+      0.0001
+   ),
+   t
+ );
+
+ info.synthGain.gain.exponentialRampToValueAtTime(
+   0.0001,
+   t+0.4
+ );
+}
+
+
+// stop sources
+if(info.source){
+ try{
+   info.source.stop(t+0.4);
+ }catch(e){}
+}
+
+if(info.osc1){
+ try{
+   info.osc1.stop(t+0.4);
+ }catch(e){}
+}
+
+if(info.osc2){
+ try{
+   info.osc2.stop(t+0.4);
+ }catch(e){}
+}
+
+if(info.lfo){
+ try{
+   info.lfo.stop(t+0.0);
+ }catch(e){}
+}
+this.activeNotes.delete(key);
 }
 allNotesOff(ch) {
   const now = this.audioCtx.currentTime;
